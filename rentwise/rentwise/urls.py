@@ -16,22 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from rentwise.core_app.views import (
-    UserViewSet, PropertyViewSet, UnitViewSet, TenantProfileViewSet,
-    CaretakerProfileViewSet, PaymentViewSet, MaintenanceRequestViewSet
-)
-
-router = DefaultRouter()
-router.register('users', UserViewSet)
-router.register('properties', PropertyViewSet)
-router.register('units', UnitViewSet)
-router.register('tenants', TenantProfileViewSet)
-router.register('caretakers', CaretakerProfileViewSet)
-router.register('payments', PaymentViewSet)
-router.register('maintenance', MaintenanceRequestViewSet)
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
+    path('api/', include('core_app.urls')),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/docs/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
 ]

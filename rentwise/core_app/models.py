@@ -2,7 +2,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
-# Create your models here.
 class User(AbstractUser):
     ROLE_CHOICES = [
         ('tenant', 'Tenant'),
@@ -11,6 +10,9 @@ class User(AbstractUser):
         ('landlord', 'Landlord'),
         ('admin', 'Admin'),
     ]
+
+    first_name = models.CharField(max_length=30, blank=True)
+    last_name = models.CharField(max_length=30, blank=True)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=12, unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tenant')
@@ -21,7 +23,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ['username', 'phone_number']
 
     def __str__(self):
-        return f"{self.username} ({self.role})"
+        return f"{self.email} ({self.role})"
 
 
 class Property(models.Model):
@@ -38,7 +40,7 @@ class Property(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.address} - {self.owner.username}"
+        return f"{self.name} ({self.type}) - {self.owner.email}"
 
 
 class Unit(models.Model):
@@ -60,15 +62,27 @@ class Unit(models.Model):
         return f"{self.unit_number} - {self.property.name} ({self.status})"
 
 
-class TenantProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='tenant_profile')
-    units = models.ManyToManyField(Unit, related_name='tenants', blank=True)
+class TenantUnit(models.Model):
+    tenant = models.ForeignKey("TenantProfile", on_delete=models.CASCADE)
+    unit = models.ForeignKey("Unit", on_delete=models.CASCADE)
     move_in_date = models.DateField(null=True, blank=True)
     move_out_date = models.DateField(null=True, blank=True)
 
+    class Meta:
+        unique_together = ("tenant", "unit")
+
+    def __str__(self):
+        return f"{self.tenant.user.email} -> {self.unit.unit_number}"
+
+
+class TenantProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='tenant_profile')
+    units = models.ManyToManyField(Unit, through=TenantUnit, related_name='tenants')
+
     def __str__(self):
         unit_list = ", ".join([u.unit_number for u in self.units.all()])
-        return f"{self.user.username} - Units: {unit_list if unit_list else 'No Units Assigned'}"
+        return f"{self.user.email} - Units: {unit_list if unit_list else 'No Units Assigned'}"
+
 
 class ManagerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='manager_profile')
@@ -76,16 +90,15 @@ class ManagerProfile(models.Model):
 
     def __str__(self):
         property_list = ", ".join([p.name for p in self.managed_properties.all()])
-        return f"{self.user.username} - Managed Properties: {property_list if property_list else 'No Properties Managed'}"
+        return f"{self.user.email} - Managed Properties: {property_list if property_list else 'None'}"
 
 
 class CaretakerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='caretaker_profile')
-    assigned_property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='caretakers', null=True,
-                                          blank=True)
+    assigned_property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='caretakers', null=True, blank=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.assigned_property.name if self.assigned_property else 'No Property Assigned'}"
+        return f"{self.user.email} - {self.assigned_property.name if self.assigned_property else 'No Property Assigned'}"
 
 
 class Payment(models.Model):
@@ -103,7 +116,7 @@ class Payment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
     def __str__(self):
-        return f"Payment of {self.amount} by {self.tenant.user.username} - {self.status}"
+        return f"{self.tenant.user.email} - {self.amount} ({self.status})"
 
 
 class MaintenanceRequest(models.Model):
@@ -111,10 +124,13 @@ class MaintenanceRequest(models.Model):
     description = models.TextField()
     request_date = models.DateTimeField(auto_now_add=True)
     completion_date = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20,
-                              choices=[('open', 'Open'), ('in_progress', 'In Progress'), ('closed', 'Closed')],
-                              default='open')
+    status = models.CharField(
+        max_length=20,
+        choices=[('open', 'Open'), ('in_progress', 'In Progress'), ('closed', 'Closed')],
+        default='open'
+    )
 
     def __str__(self):
         unit_list = ", ".join([u.unit_number for u in self.tenant.units.all()])
-        return f"Maintenance Request by {self.tenant.user.username} for units {unit_list} - {self.status}"
+        return f"Request by {self.tenant.user.email} for units {unit_list} - {self.status}"
+

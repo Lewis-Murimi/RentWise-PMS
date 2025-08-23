@@ -1,0 +1,475 @@
+#################################################################
+# USER REGISTRATION
+#################################################################
+
+### Register Tenant
+POST http://127.0.0.1:8000/api/users/
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "email": "tenant1@example.com",
+  "username": "tenant1",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone_number": "0701345678",
+  "password": "SecurePassword123!",
+  "role": "tenant"
+}
+
+### Register Landlord
+POST http://127.0.0.1:8000/api/users/
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "email": "landlord1@example.com",
+  "username": "landlord1",
+  "first_name": "Mary",
+  "last_name": "Wanjiku",
+  "phone_number": "0700345678",
+  "password": "SecurePassword123!",
+  "role": "landlord"
+}
+
+### Register Manager
+POST http://127.0.0.1:8000/api/users/
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "email": "manager1@example.com",
+  "username": "manager1",
+  "first_name": "Alice",
+  "last_name": "Kamau",
+  "phone_number": "0702345678",
+  "password": "SecurePassword123!",
+  "role": "property_manager"
+}
+
+### Register Caretaker
+POST http://127.0.0.1:8000/api/users/
+Content-Type: application/json
+Authorization: Bearer {{admin_access_token}}
+
+{
+  "email": "caretaker1@example.com",
+  "username": "caretaker1",
+  "first_name": "Peter",
+  "last_name": "Otieno",
+  "phone_number": "0703345678",
+  "password": "SecurePassword123!",
+  "role": "caretaker"
+}
+
+
+########################################
+# LOGIN USERS (JWT) AND STORE TOKENS
+########################################
+
+### Login Admin
+POST http://127.0.0.1:8000/api/auth/token/
+Content-Type: application/json
+
+{
+  "email": "superadmin@rentwise.com",
+  "password": "Admin@001"
+}
+
+> {%
+    client.global.set("admin_access_token", response.body.access)
+%}
+
+### Login Landlord
+POST http://127.0.0.1:8000/api/auth/token/
+Content-Type: application/json
+
+{
+  "email": "landlord1@example.com",
+  "password": "SecurePassword123!"
+}
+
+> {%
+    client.global.set("landlord_access_token", response.body.access)
+%}
+
+### Login Tenant
+POST http://127.0.0.1:8000/api/auth/token/
+Content-Type: application/json
+
+{
+  "email": "tenant1@example.com",
+  "password": "SecurePassword123!"
+}
+
+> {%
+    client.global.set("tenant_access_token", response.body.access)
+%}
+
+### Login Manager
+POST http://127.0.0.1:8000/api/auth/token/
+Content-Type: application/json
+
+{
+  "email": "manager1@example.com",
+  "password": "SecurePassword123!"
+}
+
+> {%
+    client.global.set("manager_access_token", response.body.access)
+%}
+
+### Login Caretaker
+POST http://127.0.0.1:8000/api/auth/token/
+Content-Type: application/json
+
+{
+  "email": "caretaker1@example.com",
+  "password": "SecurePassword123!"
+}
+
+> {%
+    client.global.set("caretaker_access_token", response.body.access)
+%}
+
+
+########################################
+# CURRENT USER (/me/) TESTS
+########################################
+
+### Get Current User (Admin)
+GET http://127.0.0.1:8000/api/me/
+Authorization: Bearer {{admin_access_token}}
+
+### Get Current User (Landlord)
+GET http://127.0.0.1:8000/api/me/
+Authorization: Bearer {{landlord_access_token}}
+
+### Get Current User (Manager)
+GET http://127.0.0.1:8000/api/me/
+Authorization: Bearer {{manager_access_token}}
+
+### Get Current User (Caretaker)
+GET http://127.0.0.1:8000/api/me/
+Authorization: Bearer {{caretaker_access_token}}
+
+### Get Current User (Tenant)
+GET http://127.0.0.1:8000/api/me/
+Authorization: Bearer {{tenant_access_token}}
+
+
+########################################
+# NEGATIVE RBAC TESTS FOR /me/
+########################################
+
+### Unauthorized Access (No Token)
+GET http://127.0.0.1:8000/api/me/
+
+### Expected Output
+# {
+#   "detail": "Authentication credentials were not provided."
+# }
+
+### Tenant trying to access manager-only info endpoint (example)
+GET http://127.0.0.1:8000/api/manager-dashboard/
+Authorization: Bearer {{tenant_access_token}}
+
+### Expected Output
+# {
+#   "detail": "You do not have permission to perform this action."
+# }
+
+
+########################################
+# PROPERTIES CRUD (Landlord & Manager)
+########################################
+
+### Create Property (Landlord)
+POST http://127.0.0.1:8000/api/properties/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "name": "Green Apartments",
+  "address": "123 Nairobi Rd",
+  "description": "Spacious 2-bedroom apartments",
+  "type": "residential"
+}
+
+### List Properties (Landlord)
+GET http://127.0.0.1:8000/api/properties/
+Authorization: Bearer {{landlord_access_token}}
+
+### Get Property Detail (Landlord)
+GET http://127.0.0.1:8000/api/properties/3/
+Authorization: Bearer {{landlord_access_token}}
+
+### Update Property (Landlord)
+PATCH http://127.0.0.1:8000/api/properties/3/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "description": "Updated description for testing"
+}
+
+### Delete Property (Landlord)
+DELETE http://127.0.0.1:8000/api/properties/1/
+Authorization: Bearer {{landlord_access_token}}
+
+### Negative Test: Tenant tries to create property
+POST http://127.0.0.1:8000/api/properties/
+Authorization: Bearer {{tenant_access_token}}
+Content-Type: application/json
+
+{
+  "name": "Tenant Apartment",
+  "address": "Unknown",
+  "description": "Should fail",
+  "type": "residential"
+}
+
+
+########################################
+# UNITS CRUD (Landlord, Manager, Caretaker)
+########################################
+
+### Create Unit (Landlord)
+POST http://127.0.0.1:8000/api/units/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "property_id": 3,
+  "unit_number": "101",
+  "size": "2 Bedroom",
+  "rent": "50000.00",
+  "status": "available"
+}
+
+### List Units (Landlord)
+GET http://127.0.0.1:8000/api/units/
+Authorization: Bearer {{landlord_access_token}}
+
+### Update Unit (Manager)
+PATCH http://127.0.0.1:8000/api/units/4/
+Authorization: Bearer {{manager_access_token}}
+Content-Type: application/json
+
+{
+  "status": "occupied"
+}
+
+### Delete Unit (Landlord)
+DELETE http://127.0.0.1:8000/api/units/1/
+Authorization: Bearer {{landlord_access_token}}
+
+### Negative Test: Tenant tries to update unit
+PATCH http://127.0.0.1:8000/api/units/1/
+Authorization: Bearer {{tenant_access_token}}
+Content-Type: application/json
+
+{
+  "status": "occupied"
+}
+
+
+########################################
+# TENANT UNIT ASSIGNMENT
+########################################
+
+### Assign Unit to Tenant (Landlord)
+POST http://127.0.0.1:8000/api/assign-unit/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "tenant_id": 3,
+  "unit_id": 1,
+  "move_in_date": "2025-08-23",
+  "move_out_date": "2026-08-23"
+}
+
+### Assign Unit to Tenant (Manager)
+POST http://127.0.0.1:8000/api/assign-unit/
+Authorization: Bearer {{manager_access_token}}
+Content-Type: application/json
+
+{
+  "tenant_id": 3,
+  "unit_id": 1,
+  "move_in_date": "2025-08-23",
+  "move_out_date": "2026-08-23"
+}
+
+### Assign Unit to Tenant (Caretaker)
+POST http://127.0.0.1:8000/api/assign-unit/
+Authorization: Bearer {{caretaker_access_token}}
+Content-Type: application/json
+
+{
+  "tenant_id": 3,
+  "unit_id": 1,
+  "move_in_date": "2025-08-23",
+  "move_out_date": "2026-08-23"
+}
+
+### Negative Test: Tenant tries to assign unit
+POST http://127.0.0.1:8000/api/assign-unit/
+Authorization: Bearer {{tenant_access_token}}
+Content-Type: application/json
+
+{
+  "tenant_id": 3,
+  "unit_id": 1,
+  "move_in_date": "2025-08-23",
+  "move_out_date": "2026-08-23"
+}
+
+
+########################################
+# PAYMENTS CRUD
+########################################
+
+### Create Payment (Landlord)
+POST http://127.0.0.1:8000/api/payments/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "tenant": 3,
+  "amount": "50000.00",
+  "due_date": "2025-09-01",
+  "status": "pending"
+}
+
+### List Payments (Tenant sees own)
+GET http://127.0.0.1:8000/api/payments/
+Authorization: Bearer {{tenant_access_token}}
+
+### Update Payment (Landlord)
+PATCH http://127.0.0.1:8000/api/payments/1/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "status": "paid"
+}
+
+### Delete Payment (Landlord)
+DELETE http://127.0.0.1:8000/api/payments/1/
+Authorization: Bearer {{landlord_access_token}}
+
+### Negative Test: Tenant tries to delete payment
+DELETE http://127.0.0.1:8000/api/payments/1/
+Authorization: Bearer {{tenant_access_token}}
+
+
+########################################
+# MAINTENANCE REQUESTS CRUD
+########################################
+
+### Create Maintenance Request (Tenant)
+POST http://127.0.0.1:8000/api/maintenance/
+Authorization: Bearer {{tenant_access_token}}
+Content-Type: application/json
+
+{
+  "tenant": 3,
+  "description": "Leaking tap in kitchen"
+}
+
+### List Maintenance Requests (Landlord)
+GET http://127.0.0.1:8000/api/maintenance/
+Authorization: Bearer {{landlord_access_token}}
+
+### Update Maintenance Request (Caretaker)
+PATCH http://127.0.0.1:8000/api/maintenance/1/
+Authorization: Bearer {{caretaker_access_token}}
+Content-Type: application/json
+
+{
+  "status": "in_progress"
+}
+
+### Delete Maintenance Request (Admin)
+DELETE http://127.0.0.1:8000/api/maintenance/1/
+Authorization: Bearer {{admin_access_token}}
+
+### Negative Test: Tenant tries to update another tenant's maintenance
+PATCH http://127.0.0.1:8000/api/maintenance/1/
+Authorization: Bearer {{tenant_access_token}}
+Content-Type: application/json
+
+{
+  "status": "completed"
+}
+
+
+########################################
+# ASSIGNMENTS / UNASSIGNMENTS
+########################################
+
+### Assign Manager to Property (Landlord)
+POST http://127.0.0.1:8000/api/assign/manager/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "manager_id": 5,
+  "property_id": 3
+}
+
+### Unassign Manager from Property (Landlord)
+POST http://127.0.0.1:8000/api/unassign/manager/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "manager_id": 4,
+  "property_id": 1
+}
+
+### Assign Caretaker to Property (Landlord)
+POST http://127.0.0.1:8000/api/assign/caretaker/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "caretaker_id": 5,
+  "property_id": 1
+}
+
+### Unassign Caretaker from Property (Landlord)
+POST http://127.0.0.1:8000/api/unassign/caretaker/
+Authorization: Bearer {{landlord_access_token}}
+Content-Type: application/json
+
+{
+  "caretaker_id": 5
+}
+
+
+########################################
+# PROPERTY-SPECIFIC ENDPOINTS
+########################################
+
+### Tenants by Property (Landlord)
+GET http://127.0.0.1:8000/api/properties/1/tenants/
+Authorization: Bearer {{landlord_access_token}}
+
+### Units by Property (Manager)
+GET http://127.0.0.1:8000/api/properties/1/units/
+Authorization: Bearer {{manager_access_token}}
+
+### Payments by Property (Landlord)
+GET http://127.0.0.1:8000/api/properties/1/payments/
+Authorization: Bearer {{landlord_access_token}}
+
+### Maintenance by Property (Caretaker)
+GET http://127.0.0.1:8000/api/properties/1/maintenance/
+Authorization: Bearer {{caretaker_access_token}}
+
+### Payments by Tenant (Tenant views own)
+GET http://127.0.0.1:8000/api/tenants/3/payments/
+Authorization: Bearer {{tenant_access_token}}
